@@ -1,0 +1,45 @@
+{
+  "name": "@formflowjs/monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless, framework-agnostic client SDKs for the FormFlow Strapi plugin",
+  "engines": {
+    "node": ">=18.18"
+  },
+  "packageManager": "pnpm@10.6.5+sha512.cdf928fca20832cd59ec53826492b7dc25dc524d4370b6b4adbf65803d32efaa6c1c88147c0ae4e8d579a6c9eec715757b50d4fa35eea179d868eada4ed043af",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
+    "lint:pkg": "turbo run lint:pkg",
+    "clean": "turbo run clean && rimraf node_modules/.cache",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "turbo run build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.11",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/vue": "^8.1.0",
+    "@types/node": "^20.17.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "happy-dom": "^15.11.7",
+    "jsdom": "^25.0.1",
+    "publint": "^0.2.12",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.3.5",
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8",
+    "vue": "^3.5.13"
+  }
+}
