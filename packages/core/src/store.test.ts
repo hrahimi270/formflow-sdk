@@ -1,0 +1,191 @@
+import { describe, expect, it, vi } from 'vitest';
+import { createFormStore } from './store';
+import { FormFlowError } from './errors';
+import type { FormFlowClient } from './client';
+import { conditionalForm, freeFieldsForm, multiStepForm } from './__fixtures__/forms';
+
+/** A minimal mock client; override only the methods a test exercises. */
+function mockClient(overrides: Partial<FormFlowClient> = {}): FormFlowClient {
+  return {
+    getForm: vi.fn(),
+    submit: vi.fn(),
+    validateStep: vi.fn(),
+    savePartial: vi.fn(),
+    loadPartial: vi.fn(),
+    ...overrides,
+  } as FormFlowClient;
+}
+
+describe('createFormStore — initial state', () => {
+  it('single-layout has stepCount 1 and currentStep 0', () => {
+    const store = createFormStore(freeFieldsForm, { client: mockClient() });
+    const s = store.getState();
+    expect(s.stepCount).toBe(1);
+    expect(s.currentStep).toBe(0);
+    expect(s.status).toBe('idle');
+  });
+
+  it('seeds defaults and visible field names', () => {
+    const store = createFormStore(freeFieldsForm, { client: mockClient() });
+    expect(store.getState().visibleFieldNames).toContain('contact_email');
+    expect(store.getVisibleFields().map((f) => f.name)).toEqual([
+      'full_name',
+      'contact_email',
+      'message',
+      'age',
+    ]);
+  });
+});
+
+describe('createFormStore — visibility recompute + error clearing', () => {
+  it('recomputes visibility and drops hidden-field errors', () => {
+    const store = createFormStore(conditionalForm, { client: mockClient(), validateOn: 'submit' });
+    store.setFieldValue('contact_method', 'phone');
+    expect(store.getState().visibleFieldNames).toContain('phone_number');
+
+    // Force an error on the now-visible field, then hide it again.
+    store.setFieldError('phone_number', ['Phone is required']);
+    expect(store.getState().errors.phone_number).toBeTruthy();
+
+    store.setFieldValue('contact_method', 'email');
+    expect(store.getState().visibleFieldNames).not.toContain('phone_number');
+    // Hidden field's error must be dropped.
+    expect(store.getState().errors.phone_number).toBeUndefined();
+  });
+
+  it('notifies subscribers on mutation', () => {
+    const store = createFormStore(freeFieldsForm, { client: mockClient() });
+    const listener = vi.fn();
+    const unsub = store.subscribe(listener);
+    store.setFieldValue('full_name', 'Ada');
+    expect(listener).toHaveBeenCalled();
+    unsub();
+  });
+});
+
+describe('createFormStore — submit flow', () => {
+  it('blocks the network and sets errors when invalid', async () => {
+    const submit = vi.fn();
+    const store = createFormStore(freeFieldsForm, { client: mockClient({ submit }) });
+    const res = await store.submit();
+    expect(res.ok).toBe(false);
+    expect(submit).not.toHaveBeenCalled();
+    expect(store.getState().status).toBe('error');
+    expect(store.getState().errors.contact_email).toBeTruthy();
+  });
+
+  it('submits valid data and reaches success', async () => {
+    const result = { success: true as const, message: 'Thanks', redirectUrl: null };
+    const onSubmitSuccess = vi.fn();
+    const store = createFormStore(freeFieldsForm, {
+      client: mockClient({ submit: vi.fn(async () => result) }),
+      onSubmitSuccess,
+    });
+    store.setValues({ contact_email: 'a@b.com', message: 'hello world long enough' });
+    const res = await store.submit();
+    expect(res.ok).toBe(true);
+    expect(store.getState().status).toBe('success');
+    expect(store.getState().result).toEqual(result);
+    expect(onSubmitSuccess).toHaveBeenCalledWith(result, expect.any(Object));
+  });
+
+  it('merges server validation errors on a 400', async () => {
+    const onSubmitError = vi.fn();
+    const serverErr = new FormFlowError('Validation failed', {
+      code: 'validation',
+      status: 400,
+      fieldErrors: { contact_email: ['Server says invalid'] },
+    });
+    const store = createFormStore(freeFieldsForm, {
+      client: mockClient({ submit: vi.fn(async () => { throw serverErr; }) }),
+      onSubmitError,
+    });
+    store.setValues({ contact_email: 'a@b.com', message: 'hello world long enough' });
+    const res = await store.submit();
+    expect(res.ok).toBe(false);
+    expect(store.getState().errors.contact_email).toEqual(['Server says invalid']);
+    expect(store.getState().submitError).toBe(serverErr);
+    expect(onSubmitError).toHaveBeenCalledWith(serverErr);
+  });
+});
+
+describe('createFormStore — multi-step navigation', () => {
+  it('client step validation blocks advance when invalid', async () => {
+    const store = createFormStore(multiStepForm, { client: mockClient() });
+    expect(store.getState().stepCount).toBe(2);
+    const advanced = await store.nextStep();
+    expect(advanced).toBe(false);
+    expect(store.getState().currentStep).toBe(0);
+    expect(store.getState().errors.first_name).toBeTruthy();
+  });
+
+  it('advances when the current step is valid; prevStep goes back', async () => {
+    const store = createFormStore(multiStepForm, { client: mockClient() });
+    store.setValues({ first_name: 'Ada', last_name: 'Lovelace' });
+    expect(await store.nextStep()).toBe(true);
+    expect(store.getState().currentStep).toBe(1);
+    store.prevStep();
+    expect(store.getState().currentStep).toBe(0);
+  });
+
+  it('uses the server when serverStepValidation is enabled', async () => {
+    const validateStep = vi.fn(async () => ({ valid: true as const, step: 'step-1', errors: {} }));
+    const store = createFormStore(multiStepForm, {
+      client: mockClient({ validateStep }),
+      serverStepValidation: true,
+    });
+    store.setValues({ first_name: 'Ada', last_name: 'Lovelace' });
+    expect(await store.nextStep()).toBe(true);
+    expect(validateStep).toHaveBeenCalledWith('wizard-form', expect.any(Object), 'step-1');
+    expect(store.getState().currentStep).toBe(1);
+  });
+
+  it('server step validation blocks advance and merges server field errors', async () => {
+    const validateStep = vi.fn(async () => {
+      throw new FormFlowError('Validation failed', {
+        code: 'validation',
+        status: 400,
+        step: 'step-1',
+        fieldErrors: { first_name: ['Server rejects this'] },
+      });
+    });
+    const store = createFormStore(multiStepForm, {
+      client: mockClient({ validateStep }),
+      serverStepValidation: true,
+    });
+    store.setValues({ first_name: 'Ada', last_name: 'Lovelace' });
+    const advanced = await store.nextStep();
+    expect(advanced).toBe(false);
+    expect(store.getState().currentStep).toBe(0);
+    expect(store.getState().errors.first_name).toEqual(['Server rejects this']);
+  });
+
+  it('getStepFields resolves step field IDs to fields', () => {
+    const store = createFormStore(multiStepForm, { client: mockClient() });
+    expect(store.getStepFields(0).map((f) => f.name)).toEqual(['first_name', 'last_name']);
+    expect(store.getStepFields(1).map((f) => f.name)).toEqual(['email']);
+  });
+});
+
+describe('createFormStore — captcha + partial', () => {
+  it('setCaptchaToken folds the token into the submit body', async () => {
+    const submit = vi.fn(async () => ({ success: true as const, message: 'ok', redirectUrl: null }));
+    const store = createFormStore(freeFieldsForm, { client: mockClient({ submit }) });
+    store.setValues({ contact_email: 'a@b.com', message: 'hello world long enough' });
+    store.setCaptchaToken('recaptcha', 'tok123');
+    await store.submit();
+    expect(submit).toHaveBeenCalledWith(
+      'test-free-fields-form',
+      expect.objectContaining({ captchaTokens: { recaptcha: 'tok123' } }),
+      expect.any(Object)
+    );
+  });
+
+  it('loadPartial merges server data into values', async () => {
+    const loadPartial = vi.fn(async () => ({ data: { full_name: 'Resumed' }, metadata: {} }));
+    const store = createFormStore(freeFieldsForm, { client: mockClient({ loadPartial }) });
+    await store.loadPartial('tok');
+    expect(store.getState().values.full_name).toBe('Resumed');
+    expect(store.getState().resumeToken).toBe('tok');
+  });
+});
