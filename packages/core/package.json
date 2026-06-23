@@ -1,0 +1,46 @@
+{
+  "name": "@formflowjs/core",
+  "version": "0.1.0",
+  "description": "Framework-agnostic core for FormFlow: types, schema-driven form engine, validation/conditional logic (parity with the Strapi plugin), and the content-API client.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "keywords": ["formflow", "strapi", "forms", "headless", "form-renderer", "validation"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hrahimi270/formflow-sdk.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/hrahimi270/formflow-sdk/tree/main/packages/core",
+  "bugs": { "url": "https://github.com/hrahimi270/formflow-sdk/issues" },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md"],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint:pkg": "publint",
+    "clean": "rimraf dist .turbo"
+  }
+}
