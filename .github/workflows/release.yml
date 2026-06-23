@@ -9,7 +9,7 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 permissions:
   contents: write # let Changesets push the "Version Packages" PR + git tags
   pull-requests: write # let Changesets open/update that PR
-  id-token: write # enable npm provenance attestations (public repo only)
+  id-token: write # OIDC: tokenless npm publish + automatic provenance
 
 jobs:
   release:
@@ -23,21 +23,19 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24 # >= 22.14 required for npm OIDC trusted publishing
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
+      # Trusted publishing requires npm >= 11.5.1 (newer than the bundled version).
+      - name: Ensure OIDC-capable npm
+        run: npm install -g npm@latest
+
       - run: pnpm install --frozen-lockfile
 
-      # Authenticate npm for the publish step (token bypasses 2FA; required so
-      # pnpm/changeset can publish non-interactively).
-      - name: Configure npm auth
-        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # When there are pending changesets -> opens/updates a "Version Packages" PR.
-      # When that PR is merged (no pending changesets) -> builds and publishes.
+      # Pending changesets -> opens/updates the "Version Packages" PR.
+      # No pending changesets (that PR was merged) -> builds and publishes to npm
+      # via OIDC trusted publishing. No NPM_TOKEN needed; provenance is automatic.
       - name: Create Release PR or publish
         uses: changesets/action@v1
         with:
@@ -45,5 +43,3 @@ jobs:
           publish: pnpm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
