@@ -1,18 +1,28 @@
 {
   "name": "@formflowjs/react",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Headless React adapter for FormFlow: hooks, providers, and renderless components that bind your own markup to the framework-agnostic @formflowjs/core engine.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
-  "keywords": ["formflow", "strapi", "forms", "react", "headless", "form-renderer", "hooks"],
+  "keywords": [
+    "formflow",
+    "strapi",
+    "forms",
+    "react",
+    "headless",
+    "form-renderer",
+    "hooks"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hrahimi270/formflow-sdk.git",
     "directory": "packages/react"
   },
   "homepage": "https://github.com/hrahimi270/formflow-sdk/tree/main/packages/react",
-  "bugs": { "url": "https://github.com/hrahimi270/formflow-sdk/issues" },
+  "bugs": {
+    "url": "https://github.com/hrahimi270/formflow-sdk/issues"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -29,7 +39,10 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true

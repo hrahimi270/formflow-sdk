@@ -1,18 +1,28 @@
 {
   "name": "@formflowjs/vue",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Headless Vue 3 adapter for FormFlow: composables and renderless components that bind your own markup to the framework-agnostic @formflowjs/core engine.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
-  "keywords": ["formflow", "strapi", "forms", "vue", "headless", "form-renderer", "composables"],
+  "keywords": [
+    "formflow",
+    "strapi",
+    "forms",
+    "vue",
+    "headless",
+    "form-renderer",
+    "composables"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hrahimi270/formflow-sdk.git",
     "directory": "packages/vue"
   },
   "homepage": "https://github.com/hrahimi270/formflow-sdk/tree/main/packages/vue",
-  "bugs": { "url": "https://github.com/hrahimi270/formflow-sdk/issues" },
+  "bugs": {
+    "url": "https://github.com/hrahimi270/formflow-sdk/issues"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -29,7 +39,10 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
