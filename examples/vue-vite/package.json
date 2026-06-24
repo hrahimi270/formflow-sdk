@@ -1,6 +1,6 @@
 {
   "name": "@formflowjs/example-vue-vite",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "description": "Minimal Vite + Vue 3 example that fetches a FormFlow form by slug and renders it headlessly.",

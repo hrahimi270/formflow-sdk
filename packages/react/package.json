@@ -1,6 +1,6 @@
 {
   "name": "@formflowjs/react",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Headless React adapter for FormFlow: hooks, providers, and renderless components that bind your own markup to the framework-agnostic @formflowjs/core engine.",
   "license": "MIT",
   "type": "module",
