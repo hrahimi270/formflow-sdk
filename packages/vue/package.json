@@ -1,6 +1,6 @@
 {
   "name": "@formflowjs/vue",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Headless Vue 3 adapter for FormFlow: composables and renderless components that bind your own markup to the framework-agnostic @formflowjs/core engine.",
   "license": "MIT",
   "type": "module",
