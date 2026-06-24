@@ -1,6 +1,6 @@
 # @formflowjs/react
 
-Headless React adapter for [FormFlow](https://github.com/formflow/formflow-sdk) — the Strapi forms plugin. Fetch a form schema by slug and render it with **your own markup and styles** (Tailwind, shadcn, MUI, plain CSS). The SDK owns schema typing, client-side validation (parity with the server), conditional visibility, multi-step flow, file uploads, and captcha/honeypot plumbing. It ships **no CSS** and renders no markup of its own.
+Headless React adapter for [FormFlow](https://github.com/hrahimi270/formflow-sdk) — the [`@formflowjs/strapi-plugin-formflow`](https://github.com/hrahimi270/strapi-plugin-formflow) Strapi plugin. Fetch a form schema by slug and render it with **your own markup and styles** (Tailwind, shadcn, MUI, plain CSS). The SDK owns schema typing, client-side validation (parity with the server), conditional visibility, multi-step flow, file uploads, and captcha/honeypot plumbing. It ships **no CSS** and renders no markup of its own.
 
 - **Headless** — every element is yours; the SDK hands you value + errors + ARIA-complete prop getters.
 - **SSR / RSC-safe** — `useSyncExternalStore` with a server snapshot, `useId` for ids, no top-level browser globals. A `"use client"` banner is baked into the build for the Next.js App Router.
