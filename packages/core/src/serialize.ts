@@ -18,7 +18,7 @@ import {
   RESUME_TOKEN_FIELD,
   STEP_INDICATOR_FIELD,
 } from './constants';
-import { isFieldVisible } from './conditional';
+import { partitionFieldsByVisibility } from './conditional';
 import { isLayoutField } from './constants';
 import { isFile } from './file-rules';
 
@@ -71,9 +71,8 @@ export function buildSubmitData(
 
   // The set of fields whose values are eligible for the payload: visible,
   // non-layout. Visibility is evaluated against the full `values` object.
-  const includedFields = schema.fields.filter(
-    (field) => !isLayoutField(field.type) && isFieldVisible(field.conditional, values)
-  );
+  const { visible } = partitionFieldsByVisibility(schema.fields, values);
+  const includedFields = visible.filter((field) => !isLayoutField(field.type));
 
   // Multipart is required when any visible file field holds a real File.
   const isMultipart = includedFields.some((field) => {

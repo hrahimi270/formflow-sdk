@@ -23,10 +23,11 @@ import type {
   SubmitSuccess,
   ValidationResult,
 } from './types';
-import { DEFAULT_HONEYPOT_FIELD } from './constants';
-import { isLayoutField } from './constants';
-import { isFieldVisible } from './conditional';
+import { DEFAULT_HONEYPOT_FIELD, isLayoutField } from './constants';
+import { partitionFieldsByVisibility } from './conditional';
 import {
+  validateFields,
+  validateFiles,
   validateForm as validateFormFields,
   validateSubset,
 } from './validation';
@@ -47,7 +48,7 @@ export interface FormFlowState {
   errors: FormErrors;
   touched: Record<string, boolean>;
   dirty: Record<string, boolean>;
-  /** Recomputed on every value change via {@link isFieldVisible}. */
+  /** Recomputed on every value change from the full conditional graph. */
   visibleFieldNames: string[];
   /** Zero-based; `0` for a single-layout form. */
   currentStep: number;
@@ -198,9 +199,10 @@ export function createFormStore(
 
   /** Names of currently-visible, non-layout fields. */
   function computeVisibleFieldNames(values: FormValues): string[] {
-    return schema.fields
-      .filter((f) => !isLayoutField(f.type) && isFieldVisible(f.conditional, values))
-      .map((f) => f.name);
+    const { visible } = partitionFieldsByVisibility(schema.fields, values);
+    return visible
+      .filter((field) => !isLayoutField(field.type))
+      .map((field) => field.name);
   }
 
   /** Replace `state` with a patched copy and notify subscribers. */
@@ -332,8 +334,11 @@ export function createFormStore(
     const field = getField(name);
     if (!field) return [];
     // Hidden fields enforce nothing.
-    if (!isFieldVisible(field.conditional, state.values)) return [];
-    const result = validateFormFields([field], state.values);
+    if (!state.visibleFieldNames.includes(name)) return [];
+    const result =
+      field.type === 'file'
+        ? validateFiles([field], state.values)
+        : validateFields([field], state.values);
     return result.errors[name] ?? [];
   }
 

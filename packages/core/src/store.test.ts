@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { createFormStore } from './store';
 import { FormFlowError } from './errors';
 import type { FormFlowClient } from './client';
-import { conditionalForm, freeFieldsForm, multiStepForm } from './__fixtures__/forms';
+import {
+  conditionalForm,
+  freeFieldsForm,
+  multiStepForm,
+  nestedConditionalForm,
+} from './__fixtures__/forms';
 
 /** A minimal mock client; override only the methods a test exercises. */
 function mockClient(overrides: Partial<FormFlowClient> = {}): FormFlowClient {
@@ -38,6 +43,25 @@ describe('createFormStore — initial state', () => {
 });
 
 describe('createFormStore — visibility recompute + error clearing', () => {
+  it('hides descendants of a hidden conditional source', () => {
+    const store = createFormStore(nestedConditionalForm, { client: mockClient() });
+
+    expect(store.getState().visibleFieldNames).toEqual(['show_details']);
+    expect(store.getVisibleFields().map((item) => item.name)).toEqual(['show_details']);
+
+    store.setFieldValue('show_details', 'yes');
+    expect(store.getState().visibleFieldNames).toEqual([
+      'details',
+      'follow_up',
+      'show_details',
+    ]);
+    expect(store.getVisibleFields().map((item) => item.name)).toEqual([
+      'show_details',
+      'details',
+      'follow_up',
+    ]);
+  });
+
   it('recomputes visibility and drops hidden-field errors', () => {
     const store = createFormStore(conditionalForm, { client: mockClient(), validateOn: 'submit' });
     store.setFieldValue('contact_method', 'phone');
