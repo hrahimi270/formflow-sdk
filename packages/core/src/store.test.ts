@@ -4,6 +4,7 @@ import { FormFlowError } from './errors';
 import type { FormFlowClient } from './client';
 import {
   conditionalForm,
+  fileForm,
   freeFieldsForm,
   multiStepForm,
   nestedConditionalForm,
@@ -84,6 +85,52 @@ describe('createFormStore — visibility recompute + error clearing', () => {
     store.setFieldValue('full_name', 'Ada');
     expect(listener).toHaveBeenCalled();
     unsub();
+  });
+});
+
+describe('createFormStore — per-field validation', () => {
+  it('surfaces required errors for a graph-visible conditional field', () => {
+    const store = createFormStore(nestedConditionalForm, {
+      client: mockClient(),
+      validateOn: 'change',
+    });
+
+    store.setFieldValue('show_details', 'yes');
+    store.setFieldValue('follow_up', '');
+
+    expect(store.getState().visibleFieldNames).toContain('follow_up');
+    expect(store.getState().errors.follow_up).toEqual(['Follow-up is required']);
+    expect(store.validateField('follow_up')).toEqual(['Follow-up is required']);
+  });
+
+  it('does not enforce a conditional field whose source is graph-hidden', () => {
+    const store = createFormStore(nestedConditionalForm, {
+      client: mockClient(),
+      validateOn: 'blur',
+    });
+
+    store.setFieldTouched('follow_up');
+
+    expect(store.getState().visibleFieldNames).not.toContain('follow_up');
+    expect(store.getState().errors.follow_up).toBeUndefined();
+    expect(store.validateField('follow_up')).toEqual([]);
+  });
+
+  it('routes file fields through required and file-rule validation', () => {
+    const store = createFormStore(fileForm, { client: mockClient(), validateOn: 'blur' });
+
+    store.setFieldTouched('resume');
+    expect(store.getState().errors.resume).toEqual(['Resume is required']);
+    expect(store.validateField('resume')).toEqual(['Resume is required']);
+
+    store.setFieldValue('resume', new File(['not a PDF'], 'resume.png', { type: 'image/png' }));
+
+    expect(store.getState().errors.resume).toEqual([
+      'File "resume.png" type is not allowed. Accepted types: application/pdf,.docx',
+    ]);
+    expect(store.validateField('resume')).toEqual([
+      'File "resume.png" type is not allowed. Accepted types: application/pdf,.docx',
+    ]);
   });
 });
 

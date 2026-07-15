@@ -35,10 +35,10 @@ export { isEmptyValue as isEmpty } from './conditional';
 
 /**
  * Coerce a loosely-typed value to a boolean, for the required-`consent` check.
- * Mirrors the server's `coerceBoolean` (true/'true'/1 → true, false/'false'/0 →
- * false) and additionally treats the common form encodings `'yes'`/`'on'` as
- * true (a checked checkbox submits `'on'`). Everything else falls back to
- * `Boolean(value)`. The load-bearing guarantee is that an UNCHECKED consent
+ * Mirrors the server's `coerceBoolean`: booleans are preserved, `'true'`/`1`
+ * become true, `'false'`/`0` become false, and every other value follows
+ * `Boolean(value)`. Non-empty form encodings such as `'yes'`/`'on'` therefore
+ * become true. The load-bearing guarantee is that an UNCHECKED consent
  * (`false` / `'false'` / `0`) never coerces to `true`.
  */
 export function coerceBoolean(value: unknown): boolean {
@@ -451,6 +451,11 @@ export function validateFieldOptions(field: FormField, value: unknown): string |
  * partitioning. Form-level callers should use {@link validateForm} or
  * {@link validateSubset}.
  *
+ * @remarks
+ * **Graph-unaware low-level API:** form-level callers MUST first call
+ * {@link partitionFieldsByVisibility} with the complete schema and pass only
+ * its `visible` fields here.
+ *
  * @param fields - Array of form field definitions
  * @param data   - Submission data keyed by field name
  */
@@ -535,6 +540,11 @@ export function validateFields(fields: FormField[], data: FormValues): Validatio
  *
  * This is the low-level, flat-rule file validator used after authoritative
  * graph partitioning. Form-level callers should use {@link validateForm}.
+ *
+ * @remarks
+ * **Graph-unaware low-level API:** form-level callers MUST first call
+ * {@link partitionFieldsByVisibility} with the complete schema and pass only
+ * its `visible` fields here.
  *
  * @param fields - Array of form field definitions
  * @param data   - Submission data keyed by field name (file values are File|File[])

@@ -65,6 +65,11 @@ export function evaluateConditional(
  * visibility. This flat helper is retained for backward compatibility; use
  * {@link partitionFieldsByVisibility} for authoritative form-level decisions.
  * A field with no conditional rule (or a rule with no source field) is visible.
+ *
+ * @remarks
+ * **Graph-unaware low-level API:** form-level callers MUST use
+ * {@link partitionFieldsByVisibility} first. Calling this helper directly
+ * cannot determine whether the referenced source field is itself visible.
  */
 export function isFieldVisible(
   conditional: ConditionalRule | undefined,
