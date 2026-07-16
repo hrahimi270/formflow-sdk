@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { buildSubmitData } from './serialize';
-import { conditionalForm, fileForm, freeFieldsForm } from './__fixtures__/forms';
+import {
+  conditionalForm,
+  fileForm,
+  freeFieldsForm,
+  nestedConditionalForm,
+} from './__fixtures__/forms';
 
 describe('buildSubmitData — JSON path', () => {
   it('builds a flat body (no data wrapper) of visible fields', () => {
@@ -44,6 +49,16 @@ describe('buildSubmitData — JSON path', () => {
       phone_number: '5551234567',
     });
     expect(shown.json?.phone_number).toBe('5551234567');
+  });
+
+  it('excludes descendants when their conditional source is hidden', () => {
+    const { json } = buildSubmitData(nestedConditionalForm, {
+      show_details: 'no',
+      details: '',
+      follow_up: 'answer entered while incorrectly visible',
+    });
+
+    expect(json).toEqual({ show_details: 'no' });
   });
 
   it('appends captcha tokens under provider field names', () => {

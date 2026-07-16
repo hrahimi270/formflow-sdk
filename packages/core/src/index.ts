@@ -75,7 +75,12 @@ export {
 } from './constants';
 
 /* ---- conditional logic ---- */
-export { isEmptyValue, evaluateConditional, isFieldVisible } from './conditional';
+export {
+  isEmptyValue,
+  evaluateConditional,
+  isFieldVisible,
+  partitionFieldsByVisibility,
+} from './conditional';
 
 /* ---- file rules ---- */
 export {

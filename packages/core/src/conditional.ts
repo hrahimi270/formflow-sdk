@@ -1,10 +1,7 @@
-/**
- * Conditional-visibility logic, ported VERBATIM from the plugin's
- * `server/src/utils/validation-rules.ts` so the SDK hides/shows (and therefore
- * validates) fields identically to the server.
- */
+/** Conditional-visibility logic shared with the FormFlow Strapi plugin. */
 
 import type { ConditionalRule } from './types';
+import { isLayoutField } from './constants';
 
 /**
  * Determine whether a value counts as "empty" for conditional/required checks.
@@ -26,7 +23,7 @@ export function isEmptyValue(value: unknown): boolean {
  * - equality is string-based (`String(x ?? '')`), so `1` equals `'1'`;
  * - `contains` on an array is exact-element membership (after String coercion),
  *   on a string is substring, and against anything else is `false`;
- * - an unknown operator fails OPEN (field stays visible).
+ * - an unknown operator fails closed (field stays hidden).
  */
 export function evaluateConditional(
   conditional: ConditionalRule,
@@ -59,15 +56,20 @@ export function evaluateConditional(
       return !isEmptyValue(target);
 
     default:
-      // Unknown operator: default to visible so we never silently hide a field.
-      return true;
+      return false;
   }
 }
 
 /**
- * Decide whether a field is currently visible given the submission data.
- * A field with no conditional rule (or a rule with no source field) is always
- * visible. Hidden fields must be skipped entirely during validation.
+ * Evaluate one conditional rule without resolving its source field's own
+ * visibility. This flat helper is retained for backward compatibility; use
+ * {@link partitionFieldsByVisibility} for authoritative form-level decisions.
+ * A field with no conditional rule (or a rule with no source field) is visible.
+ *
+ * @remarks
+ * **Graph-unaware low-level API:** form-level callers MUST use
+ * {@link partitionFieldsByVisibility} first. Calling this helper directly
+ * cannot determine whether the referenced source field is itself visible.
  */
 export function isFieldVisible(
   conditional: ConditionalRule | undefined,
@@ -77,4 +79,66 @@ export function isFieldVisible(
     return true;
   }
   return evaluateConditional(conditional, data);
+}
+
+/**
+ * Partition fields in their original order while resolving conditional
+ * dependencies as a graph. A conditional field is visible only when its named
+ * source resolves to exactly one visible value-bearing field and its own rule
+ * passes. Missing, ambiguous, layout-only, and cyclic sources fail closed.
+ */
+export function partitionFieldsByVisibility<
+  T extends {
+    name: string;
+    type?: string;
+    conditional?: ConditionalRule;
+  },
+>(fields: T[], data: Record<string, unknown>): { visible: T[]; hidden: T[] } {
+  const visible: T[] = [];
+  const hidden: T[] = [];
+  const fieldIndexesByName = new Map<string, number[]>();
+  const visibility = new Array<'visiting' | 'visible' | 'hidden' | undefined>(fields.length);
+
+  for (const [index, field] of fields.entries()) {
+    const matchingIndexes = fieldIndexesByName.get(field.name) ?? [];
+    matchingIndexes.push(index);
+    fieldIndexesByName.set(field.name, matchingIndexes);
+  }
+
+  const resolveVisibility = (index: number): boolean => {
+    const resolved = visibility[index];
+    if (resolved === 'visible') return true;
+    if (resolved === 'hidden') return false;
+    if (resolved === 'visiting') {
+      visibility[index] = 'hidden';
+      return false;
+    }
+
+    const field = fields[index];
+    const conditional = field.conditional;
+
+    if (!conditional) {
+      visibility[index] = 'visible';
+      return true;
+    }
+
+    visibility[index] = 'visiting';
+    const sourceIndexes = conditional.field
+      ? fieldIndexesByName.get(conditional.field)
+      : undefined;
+    const sourceIndex = sourceIndexes?.length === 1 ? sourceIndexes[0] : undefined;
+    const isVisible =
+      sourceIndex !== undefined &&
+      !isLayoutField(fields[sourceIndex].type ?? '') &&
+      resolveVisibility(sourceIndex) &&
+      evaluateConditional(conditional, data);
+    visibility[index] = isVisible ? 'visible' : 'hidden';
+    return isVisible;
+  };
+
+  for (const [index, field] of fields.entries()) {
+    (resolveVisibility(index) ? visible : hidden).push(field);
+  }
+
+  return { visible, hidden };
 }

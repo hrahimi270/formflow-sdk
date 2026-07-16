@@ -1,6 +1,6 @@
 /**
- * Client-side validation — a VERBATIM port of the plugin's server validation
- * service (`server/src/services/validation.ts`) as standalone pure functions.
+ * Client-side validation kept behaviorally aligned with the plugin's server
+ * validation service (`server/src/services/validation.ts`) as pure functions.
  *
  * PARITY-CRITICAL: every default error-message string, per-rule branch, per-type
  * branch and skip/short-circuit decision must match the server exactly, so the
@@ -18,7 +18,11 @@ import type {
   ValidationResult,
   ValidationRule,
 } from './types';
-import { isEmptyValue, isFieldVisible } from './conditional';
+import {
+  isEmptyValue,
+  isFieldVisible,
+  partitionFieldsByVisibility,
+} from './conditional';
 import { isLayoutField } from './constants';
 import { isFile, validateFile, type FileLike } from './file-rules';
 
@@ -31,10 +35,10 @@ export { isEmptyValue as isEmpty } from './conditional';
 
 /**
  * Coerce a loosely-typed value to a boolean, for the required-`consent` check.
- * Mirrors the server's `coerceBoolean` (true/'true'/1 → true, false/'false'/0 →
- * false) and additionally treats the common form encodings `'yes'`/`'on'` as
- * true (a checked checkbox submits `'on'`). Everything else falls back to
- * `Boolean(value)`. The load-bearing guarantee is that an UNCHECKED consent
+ * Mirrors the server's `coerceBoolean`: booleans are preserved, `'true'`/`1`
+ * become true, `'false'`/`0` become false, and every other value follows
+ * `Boolean(value)`. Non-empty form encodings such as `'yes'`/`'on'` therefore
+ * become true. The load-bearing guarantee is that an UNCHECKED consent
  * (`false` / `'false'` / `0`) never coerces to `true`.
  */
 export function coerceBoolean(value: unknown): boolean {
@@ -443,6 +447,15 @@ export function validateFieldOptions(field: FormField, value: unknown): string |
  * required (with the consent special case), runs custom rules, the per-type
  * check and the option whitelist.
  *
+ * This is the low-level, flat-rule validator used after authoritative graph
+ * partitioning. Form-level callers should use {@link validateForm} or
+ * {@link validateSubset}.
+ *
+ * @remarks
+ * **Graph-unaware low-level API:** form-level callers MUST first call
+ * {@link partitionFieldsByVisibility} with the complete schema and pass only
+ * its `visible` fields here.
+ *
  * @param fields - Array of form field definitions
  * @param data   - Submission data keyed by field name
  */
@@ -525,6 +538,14 @@ export function validateFields(fields: FormField[], data: FormValues): Validatio
  * errors; each present file is checked against the field's `maxSize`/
  * `allowedTypes` rules via {@link validateFile}.
  *
+ * This is the low-level, flat-rule file validator used after authoritative
+ * graph partitioning. Form-level callers should use {@link validateForm}.
+ *
+ * @remarks
+ * **Graph-unaware low-level API:** form-level callers MUST first call
+ * {@link partitionFieldsByVisibility} with the complete schema and pass only
+ * its `visible` fields here.
+ *
  * @param fields - Array of form field definitions
  * @param data   - Submission data keyed by field name (file values are File|File[])
  */
@@ -580,8 +601,8 @@ export function validateFiles(fields: FormField[], data: FormValues): Validation
  * Validate only a SUBSET of a form's fields, identified by field `id` or `name`
  * (port of the server's `validateSubset()`). Used for per-step validation: a
  * field is included when its `id` OR its `name` is in `fieldKeys`. Conditional
- * visibility is still evaluated against the FULL `data` object, so a step field
- * depending on an earlier step's value resolves correctly.
+ * visibility is resolved against the FULL field graph and `data` object before
+ * subsetting, so a step field depending on an earlier step resolves correctly.
  *
  * @param fields    - Full array of form field definitions
  * @param fieldKeys - Field ids and/or names that belong to the subset
@@ -594,11 +615,12 @@ export function validateSubset(
 ): ValidationResult {
   const keySet = fieldKeys instanceof Set ? fieldKeys : new Set(fieldKeys);
 
-  const subset = fields.filter(
+  const { visible } = partitionFieldsByVisibility(fields, data);
+  const subset = visible.filter(
     (field) => (field.id !== undefined && keySet.has(field.id)) || keySet.has(field.name)
   );
 
-  // Reuse the exact full-form per-field logic on the filtered subset.
+  // Reuse the exact per-field logic on the graph-visible subset.
   return validateFields(subset, data);
 }
 
@@ -611,8 +633,9 @@ export function validateSubset(
  * @param data   - Submission data keyed by field name
  */
 export function validateForm(fields: FormField[], data: FormValues): ValidationResult {
-  const fieldResult = validateFields(fields, data);
-  const fileResult = validateFiles(fields, data);
+  const { visible } = partitionFieldsByVisibility(fields, data);
+  const fieldResult = validateFields(visible, data);
+  const fileResult = validateFiles(visible, data);
 
   const errors: Record<string, string[]> = { ...fieldResult.errors };
   for (const [name, messages] of Object.entries(fileResult.errors)) {

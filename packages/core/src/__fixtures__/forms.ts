@@ -88,6 +88,47 @@ export const conditionalForm: FormSchema = {
   },
 };
 
+/** A nested chain where a hidden intermediate must also hide its descendant. */
+export const nestedConditionalForm: FormSchema = {
+  title: 'Nested conditional',
+  slug: 'nested-conditional-form',
+  fields: [
+    field({
+      type: 'text',
+      name: 'details',
+      label: 'Details',
+      order: 1,
+      conditional: { field: 'show_details', operator: 'equals', value: 'yes' },
+    }),
+    field({
+      type: 'text',
+      name: 'follow_up',
+      label: 'Follow-up',
+      required: true,
+      order: 2,
+      conditional: { field: 'details', operator: 'is_empty' },
+    }),
+    field({
+      type: 'select',
+      name: 'show_details',
+      label: 'Show details',
+      order: 0,
+      defaultValue: 'no',
+      options: [
+        { label: 'Yes', value: 'yes' },
+        { label: 'No', value: 'no' },
+      ],
+    }),
+  ],
+  settings: {
+    submitButtonText: 'Submit',
+    showResetButton: false,
+    resetButtonText: 'Reset',
+    layout: 'single',
+    spam: { honeypot: false },
+  },
+};
+
 /** A two-step wizard form (steps reference field IDs). */
 export const multiStepForm: FormSchema = {
   title: 'Wizard',

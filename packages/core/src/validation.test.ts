@@ -10,7 +10,12 @@ import {
   validateForm,
   validateSubset,
 } from './validation';
-import { field, freeFieldsForm, multiStepForm } from './__fixtures__/forms';
+import {
+  field,
+  freeFieldsForm,
+  multiStepForm,
+  nestedConditionalForm,
+} from './__fixtures__/forms';
 import type { FormField } from './types';
 
 describe('coerceBoolean', () => {
@@ -322,5 +327,35 @@ describe('validateSubset / validateForm', () => {
     const result = validateForm(fields, {});
     expect(result.errors.email).toEqual(['Email is required']);
     expect(result.errors.doc).toEqual(['Doc is required']);
+  });
+
+  it('validateForm skips descendants of a hidden conditional source', () => {
+    const result = validateForm(nestedConditionalForm.fields, {
+      show_details: 'no',
+      details: '',
+      follow_up: '',
+    });
+
+    expect(result).toEqual({ valid: true, errors: {} });
+  });
+
+  it('validateSubset resolves visibility from the full field graph before subsetting', () => {
+    const result = validateSubset(
+      nestedConditionalForm.fields,
+      ['id_follow_up'],
+      { show_details: 'yes', details: '', follow_up: '' }
+    );
+
+    expect(result.errors.follow_up).toEqual(['Follow-up is required']);
+  });
+
+  it('validateSubset skips a descendant whose source is hidden', () => {
+    const result = validateSubset(
+      nestedConditionalForm.fields,
+      ['id_follow_up'],
+      { show_details: 'no', details: '', follow_up: '' }
+    );
+
+    expect(result).toEqual({ valid: true, errors: {} });
   });
 });
