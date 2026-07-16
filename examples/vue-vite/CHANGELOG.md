@@ -1,5 +1,11 @@
 # @formflowjs/example-vue-vite
 
+## 0.0.3
+
+### Patch Changes
+
+- @formflowjs/vue@1.0.2
+
 ## 0.0.2
 
 ### Patch Changes
