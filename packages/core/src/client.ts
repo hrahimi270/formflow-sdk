@@ -72,6 +72,8 @@ export interface PartialOptions {
 export interface FormFlowClient {
   /** Fetch a public form schema by slug. */
   getForm(slug: string, opts?: GetFormOptions): Promise<FormSchema>;
+  /** Best-effort notification that a visitor started interacting with a form. */
+  trackStart?(slug: string, opts?: { signal?: AbortSignal }): Promise<void>;
   /** Submit a form. Returns the success body (honeypot fake-success included). */
   submit(slug: string, payload: SubmitPayload, opts?: SubmitOptions): Promise<SubmitSuccess>;
   /** Validate a single step (POSTs the submit endpoint with `_step`). */
@@ -207,6 +209,13 @@ export function createFormFlowClient(opts: FormFlowClientOptions): FormFlowClien
         url += `?locale=${encodeURIComponent(getOpts.locale.toLowerCase())}`;
       }
       return jsonRequest<FormSchema>(url, { method: 'GET', signal: getOpts.signal });
+    },
+
+    async trackStart(slug, startOpts = {}) {
+      return jsonRequest<void>(`${formUrl(slug)}/analytics/start`, {
+        method: 'POST',
+        signal: startOpts.signal,
+      });
     },
 
     async submit(slug, payload, submitOpts = {}) {
