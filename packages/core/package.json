@@ -1,6 +1,6 @@
 {
   "name": "@formflowjs/core",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Framework-agnostic core for FormFlow: types, schema-driven form engine, validation/conditional logic (parity with the Strapi plugin), and the content-API client.",
   "license": "MIT",
   "type": "module",

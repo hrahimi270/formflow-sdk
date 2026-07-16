@@ -1,6 +1,6 @@
 {
   "name": "@formflowjs/example-react-vite",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "description": "Minimal Vite + React 18 example that fetches a FormFlow form by slug and renders it headlessly.",

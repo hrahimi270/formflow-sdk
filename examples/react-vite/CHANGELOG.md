@@ -1,5 +1,11 @@
 # @formflowjs/example-react-vite
 
+## 0.0.3
+
+### Patch Changes
+
+- @formflowjs/react@1.0.2
+
 ## 0.0.2
 
 ### Patch Changes
