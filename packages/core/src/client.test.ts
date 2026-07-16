@@ -40,6 +40,21 @@ describe('createFormFlowClient — getForm', () => {
   });
 });
 
+describe('createFormFlowClient — analytics', () => {
+  it('posts a start event to the public analytics endpoint', async () => {
+    const fetch = fetchStub(204, undefined);
+    const client = createFormFlowClient({ baseUrl: 'https://cms.test', fetch });
+
+    if (!client.trackStart) throw new Error('trackStart is not available');
+    await client.trackStart('contact-form');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://cms.test/api/formflow/forms/contact-form/analytics/start',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+});
+
 describe('createFormFlowClient — submit success + errors', () => {
   const okBody = { data: { success: true, message: 'Thanks', redirectUrl: null } };
 

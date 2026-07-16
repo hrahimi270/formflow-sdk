@@ -155,6 +155,23 @@ export function createFormStore(
   const steps: FormStep[] = isMultiStep ? schema.settings.steps ?? [] : [];
   const stepCount = isMultiStep ? Math.max(steps.length, 1) : 1;
 
+  // Server-side step validation already records the first-step start event.
+  // Other flows report their own start on first interaction, while submit()
+  // forces a fallback for server-validated forms that skipped step navigation.
+  const defersStartToServerStep = isMultiStep && serverStepValidation;
+  let hasTrackedStart = false;
+
+  function trackStartOnce(force = false): void {
+    if (hasTrackedStart || (defersStartToServerStep && !force) || !client.trackStart) return;
+    hasTrackedStart = true;
+
+    try {
+      void client.trackStart(schema.slug).catch(() => undefined);
+    } catch {
+      // Analytics is best-effort and must never interrupt form interaction.
+    }
+  }
+
   // ---- captcha tokens (kept outside `state`; folded into the submit body) ----
   const captchaTokens: CaptchaTokens = {};
 
@@ -278,6 +295,7 @@ export function createFormStore(
       validateOn === 'change' || (hadError && revalidateOn === 'change');
 
     applyValueChange(nextValues, { dirty: nextDirty });
+    trackStartOnce();
 
     if (shouldValidate) {
       runFieldValidation(name);
@@ -289,10 +307,12 @@ export function createFormStore(
     const nextDirty = { ...state.dirty };
     for (const key of Object.keys(values)) nextDirty[key] = true;
     applyValueChange(nextValues, { dirty: nextDirty });
+    trackStartOnce();
   }
 
   function setFieldTouched(name: string, touched = true): void {
     setState({ touched: { ...state.touched, [name]: touched } });
+    if (touched) trackStartOnce();
     // Validate on blur when configured (or re-validate an errored field).
     const hadError = (state.errors[name]?.length ?? 0) > 0;
     if (touched && (validateOn === 'blur' || (hadError && revalidateOn === 'blur'))) {
@@ -385,11 +405,16 @@ export function createFormStore(
     }
 
     if (serverStepValidation) {
-      const step = steps[state.currentStep];
-      const stepIndicator = step?.id ?? state.currentStep;
+      const currentStep = state.currentStep;
+      const step = steps[currentStep];
+      const stepIndicator = step?.id ?? currentStep;
       setState({ isValidating: true });
       try {
-        await client.validateStep(schema.slug, state.values, stepIndicator);
+        const validationRequest = client.validateStep(schema.slug, state.values, stepIndicator);
+        // The plugin records a start as soon as it handles first-step validation,
+        // including validation-error responses. Avoid posting a duplicate later.
+        if (currentStep === 0) hasTrackedStart = true;
+        await validationRequest;
         setState({ isValidating: false });
         return true;
       } catch (err) {
@@ -421,6 +446,7 @@ export function createFormStore(
   }
 
   async function nextStep(): Promise<boolean> {
+    trackStartOnce();
     if (state.currentStep >= stepCount - 1) {
       // Already on the last step — validate but do not advance past the end.
       return validateStepForAdvance();
@@ -452,6 +478,7 @@ export function createFormStore(
     result?: SubmitSuccess;
     error?: FormFlowError;
   }> {
+    trackStartOnce(true);
     // Validate the whole form first — never hit the network when invalid.
     const validation = validateForm();
     if (!validation.valid) {

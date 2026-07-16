@@ -88,6 +88,118 @@ describe('createFormStore — visibility recompute + error clearing', () => {
   });
 });
 
+describe('createFormStore — analytics start tracking', () => {
+  it('tracks the first single-layout interaction only once', () => {
+    const trackStart = vi.fn(async () => undefined);
+    const store = createFormStore(freeFieldsForm, { client: mockClient({ trackStart }) });
+
+    store.setFieldValue('full_name', 'Ada');
+    store.setFieldTouched('full_name');
+    store.setValues({ message: 'Hello' });
+
+    expect(trackStart).toHaveBeenCalledTimes(1);
+    expect(trackStart).toHaveBeenCalledWith(freeFieldsForm.slug);
+  });
+
+  it('tracks client-validated multi-step interaction but defers to server step validation', () => {
+    const clientTracked = vi.fn(async () => undefined);
+    createFormStore(multiStepForm, {
+      client: mockClient({ trackStart: clientTracked }),
+    }).setFieldValue('first_name', 'Ada');
+    expect(clientTracked).toHaveBeenCalledTimes(1);
+
+    const serverTracked = vi.fn(async () => undefined);
+    createFormStore(multiStepForm, {
+      client: mockClient({ trackStart: serverTracked }),
+      serverStepValidation: true,
+    }).setFieldValue('first_name', 'Ada');
+    expect(serverTracked).not.toHaveBeenCalled();
+  });
+
+  it('never lets analytics transport failures affect form interaction', async () => {
+    const trackStart = vi.fn(async () => {
+      throw new Error('analytics unavailable');
+    });
+    const store = createFormStore(freeFieldsForm, { client: mockClient({ trackStart }) });
+
+    expect(() => store.setFieldValue('full_name', 'Ada')).not.toThrow();
+    await Promise.resolve();
+    expect(trackStart).toHaveBeenCalledTimes(1);
+    expect(store.getState().values.full_name).toBe('Ada');
+  });
+
+  it('tracks a valid submit even when values were provided at initialization', async () => {
+    const trackStart = vi.fn(async () => undefined);
+    const submit = vi.fn(async () => ({
+      success: true as const,
+      message: 'Thanks',
+      redirectUrl: null,
+    }));
+    const store = createFormStore(freeFieldsForm, {
+      client: mockClient({ trackStart, submit }),
+      initialValues: {
+        contact_email: 'ada@example.com',
+        message: 'Prefilled and long enough',
+      },
+    });
+
+    expect((await store.submit()).ok).toBe(true);
+    expect(trackStart).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to start tracking when a server-validated wizard submits directly', async () => {
+    const trackStart = vi.fn(async () => undefined);
+    const submit = vi.fn(async () => ({
+      success: true as const,
+      message: 'Thanks',
+      redirectUrl: null,
+    }));
+    const store = createFormStore(multiStepForm, {
+      client: mockClient({ trackStart, submit }),
+      serverStepValidation: true,
+      initialValues: {
+        first_name: 'Ada',
+        last_name: 'Lovelace',
+        email: 'ada@example.com',
+      },
+    });
+
+    expect((await store.submit()).ok).toBe(true);
+    expect(trackStart).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not duplicate a start already recorded by first-step server validation', async () => {
+    const trackStart = vi.fn(async () => undefined);
+    const validateStep = vi.fn(async () => ({
+      valid: true as const,
+      step: 'step-1',
+      errors: {},
+    }));
+    const submit = vi.fn(async () => ({
+      success: true as const,
+      message: 'Thanks',
+      redirectUrl: null,
+    }));
+    const store = createFormStore(multiStepForm, {
+      client: mockClient({ trackStart, validateStep, submit }),
+      serverStepValidation: true,
+      initialValues: {
+        first_name: 'Ada',
+        last_name: 'Lovelace',
+        email: 'ada@example.com',
+      },
+    });
+
+    expect(await store.nextStep()).toBe(true);
+    expect((await store.submit()).ok).toBe(true);
+    expect(validateStep).toHaveBeenCalledTimes(1);
+    expect(trackStart).not.toHaveBeenCalled();
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('createFormStore — per-field validation', () => {
   it('surfaces required errors for a graph-visible conditional field', () => {
     const store = createFormStore(nestedConditionalForm, {

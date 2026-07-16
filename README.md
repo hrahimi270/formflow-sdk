@@ -21,7 +21,7 @@ They ship **no CSS** and render no markup of their own.
 
 | Package | For | Description |
 | --- | --- | --- |
-| [`@formflowjs/core`](packages/core) | Framework-agnostic | Types, content-API client, schema-driven form store, validation, conditional logic, multi-step, uploads, captcha plumbing. |
+| [`@formflowjs/core`](packages/core) | Framework-agnostic | Types, content-API client, schema-driven form store, validation, conditional logic, multi-step, uploads, captcha and start-analytics plumbing. |
 | [`@formflowjs/react`](packages/react) | React · Next.js · Astro | Headless hooks and renderless fields with ARIA-complete prop getters. SSR/RSC-safe. |
 | [`@formflowjs/vue`](packages/vue) | Vue 3 · Nuxt | Renderless components and composables exposing reactive state and prop bags. |
 

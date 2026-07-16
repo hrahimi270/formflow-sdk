@@ -95,11 +95,17 @@ State snapshot (`store.getState()`) exposes `values`, `errors`, `touched`,
 `dirty`, `visibleFieldNames`, `currentStep`/`stepCount`, `status`,
 `isSubmitting`, `submitError`, `result`, `uploadProgress`, and `resumeToken`.
 
-## What it does NOT do
+## Analytics and server-only behavior
 
-Headless by design — no markup, no styles, no widget rendering. It also never
-posts analytics; view/submit analytics are derived server-side. Webhooks, email,
-exports, and autoresponders are server-only concerns out of scope here.
+Headless by design — no markup, no styles, and no widget rendering. A store
+records one best-effort `start` event per session: normally when interaction
+begins, or through first-step validation when server-side step validation is
+enabled (with a submit fallback). Form-schema fetches and successful submissions
+record views and completions server-side. Consumers using the client without a
+store can call `client.trackStart?.(slug)` once when interaction begins.
+Analytics failures never block form use.
+
+Webhooks, email, exports, and autoresponders are server-only concerns.
 
 ## License
 
