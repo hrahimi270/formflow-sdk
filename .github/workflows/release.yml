@@ -27,9 +27,10 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
-      # Trusted publishing requires npm >= 11.5.1 (newer than the bundled version).
+      # Trusted publishing requires npm >= 11.5.1. Pin npm 11 because pnpm 10's
+      # publish bridge forwards --no-git-checks; npm 12 rejects that pnpm flag.
       - name: Ensure OIDC-capable npm
-        run: npm install -g npm@latest
+        run: npm install -g npm@11.5.2
 
       - run: pnpm install --frozen-lockfile
 
@@ -37,9 +38,25 @@ jobs:
       # No pending changesets (that PR was merged) -> builds and publishes to npm
       # via OIDC trusted publishing. No NPM_TOKEN needed; provenance is automatic.
       - name: Create Release PR or publish
+        id: changesets
         uses: changesets/action@v1
         with:
           version: pnpm run version-packages
           publish: pnpm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add version to release PR title
+        if: steps.changesets.outputs.published != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_FILE: packages/core/package.json
+        run: |
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head changeset-release/main --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$pr_number" ]; then
+            echo "No open Changesets release PR to rename."
+            exit 0
+          fi
+          version="$(gh api "repos/$GITHUB_REPOSITORY/contents/$VERSION_FILE?ref=changeset-release/main" --jq .content | base64 --decode | node -e "let json=''; process.stdin.on('data', chunk => json += chunk).on('end', () => { const version = JSON.parse(json).version; if (typeof version !== 'string') process.exit(1); process.stdout.write(version); })")"
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/pulls/$pr_number" -f title="Version Packages (v$version)" >/dev/null
