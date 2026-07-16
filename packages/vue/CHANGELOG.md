@@ -1,5 +1,12 @@
 # @formflowjs/vue
 
+## 1.0.3
+
+### Patch Changes
+
+- Updated dependencies [fcd6b92]
+  - @formflowjs/core@1.0.3
+
 ## 1.0.2
 
 ### Patch Changes

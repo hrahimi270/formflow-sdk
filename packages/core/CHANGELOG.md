@@ -1,5 +1,11 @@
 # @formflowjs/core
 
+## 1.0.3
+
+### Patch Changes
+
+- fcd6b92: Record one best-effort form-start analytics event from SDK stores and expose the same start hook to direct client consumers.
+
 ## 1.0.2
 
 ### Patch Changes
